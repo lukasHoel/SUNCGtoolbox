@@ -14,8 +14,6 @@
 #  define USE_GLUT
 #endif
 
-
-
 ////////////////////////////////////////////////////////////////////////
 // Program arguments
 ////////////////////////////////////////////////////////////////////////
@@ -46,6 +44,7 @@ static int capture_category_images = 0;
 static int capture_boundary_images = 0;
 static int capture_room_surface_images = 0;
 static int capture_room_boundary_images = 0;
+static int capture_uv_map_images = 0;
 
 
 // Other parameter program variables
@@ -95,7 +94,8 @@ enum {
   MATERIAL_COLOR_SCHEME,
   NODE_COLOR_SCHEME,
   CATEGORY_COLOR_SCHEME,
-  ROOM_SURFACE_COLOR_SCHEME
+  ROOM_SURFACE_COLOR_SCHEME,
+  UV_MAP_COLOR_SCHEME,
 };
 
 
@@ -569,6 +569,7 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
         R3SceneElement *element = node->Element(i);
         const R3Material *material = element->Material();
         const R3Brdf *brdf = (material) ? material->Brdf() : NULL;
+
         if (!brdf) brdf = &R3default_brdf;
         RNScalar kd = brdf->Diffuse().Luminance();
         RNScalar ks = brdf->Specular().Luminance();
@@ -622,6 +623,44 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                   R3Vector normal = (vertex->Flags()[R3_VERTEX_NORMALS_DRAW_FLAG]) ? vertex->Normal() : triangle->Normal();
                   LoadScalar(fabs(normal.Dot(v)), 1.0);
                 }
+                R3LoadPoint(position);
+              }
+            }
+          }
+        }
+      }
+      glEnd();
+    }
+    else if (color_scheme == UV_MAP_COLOR_SCHEME) {
+      // Draw rgb with r=u, g=v, b=object_id interpolated between triangle vertices
+      glBegin(GL_TRIANGLES);
+      RNCoord b = 1.0 * node->SceneIndex() / scene->NNodes();
+      for (int i = 0; i < node->NElements(); i++) {
+        R3SceneElement *element = node->Element(i);
+        for (int j = 0; j < element->NShapes(); j++) {
+          R3Shape *shape = element->Shape(j);
+          if (shape->ClassID() == R3TriangleArray::CLASS_ID()) {
+            R3TriangleArray *triangles = (R3TriangleArray *) shape;
+            for (int k = 0; k < triangles->NTriangles(); k++) {
+              R3Triangle *triangle = triangles->Triangle(k);
+              for (int m = 0; m < 3; m++) {
+                R3TriangleVertex *vertex = triangle->Vertex(m);
+                const R3Point& position = vertex->Position();
+                const R2Point& texCoords = vertex->TextureCoords();
+                RNCoord r = texCoords.X();
+                RNCoord g = texCoords.Y();
+
+                // this implements the GL_REPEAT mode for texture coordinates that are out of range
+                if (r > 1.0 || r < 0.0) {
+                  RNCoord tmp;
+                  r = modf(r, &tmp);
+                }
+                if (g > 1.0 || g < 0.0) {
+                  RNCoord tmp;
+                  g = modf(g, &tmp);
+                }
+
+                RNLoadRgb(r, g, b);
                 R3LoadPoint(position);
               }
             }
@@ -1070,6 +1109,18 @@ void Redraw(void)
     }
   }
 
+  // Draw, capture, and write texture coordinates image 
+  if (capture_uv_map_images) {
+    if (DrawSceneWithOpenGL(*camera, scene, UV_MAP_COLOR_SCHEME)) {
+      R2Image color_image(width, height, 3);
+      if (CaptureColor(color_image)) {
+        char output_image_filename[1024];
+        sprintf(output_image_filename, "%s/%s_uv_map.jpg", output_image_directory, name);
+        color_image.Write(output_image_filename);
+      }
+    }
+  }
+
 #ifdef USE_GLUT
   // Redraw
   glutPostRedisplay();
@@ -1267,6 +1318,10 @@ RenderImagesWithRaycasting(const R3Camera& camera, R3Scene *scene, const char *o
           else category_image.SetGridValue(ix, iy, 0);
                                                        
         }
+        if (capture_uv_map_images) {
+          printf("UV map creation with raycasting not implemented!");
+          exit(1);
+        }
       }
     }
   }
@@ -1407,6 +1462,7 @@ ParseArgs(int argc, char **argv)
       else if (!strcmp(*argv, "-capture_boundary_images")) { capture_images = capture_boundary_images = 1; }
       else if (!strcmp(*argv, "-capture_room_surface_images")) { capture_images = capture_room_surface_images = 1; }
       else if (!strcmp(*argv, "-capture_room_boundary_images")) { capture_images = capture_room_boundary_images = 1; }
+      else if (!strcmp(*argv, "-capture_uv_map")) { capture_images = capture_uv_map_images = 1; }
       else if (!strcmp(*argv, "-categories")) { argc--; argv++; input_categories_name = *argv; capture_category_images = 1; }
       else if (!strcmp(*argv, "-kinect_min_depth")) { argc--; argv++; kinect_min_depth = atof(*argv); }
       else if (!strcmp(*argv, "-kinect_max_depth")) { argc--; argv++; kinect_max_depth = atof(*argv); }
@@ -1453,6 +1509,7 @@ ParseArgs(int argc, char **argv)
     capture_boundary_images = 1;
     capture_room_surface_images = 1;
     capture_room_boundary_images = 1;
+    capture_uv_map_images = 1;
   }
 
   // Check filenames
