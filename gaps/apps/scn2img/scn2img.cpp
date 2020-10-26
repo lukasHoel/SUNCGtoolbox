@@ -654,13 +654,24 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                 if (r > 1.0 || r < 0.0) {
                   RNCoord tmp;
                   r = modf(r, &tmp);
+                  if (r > 1.0) {
+                    r = 1.0;
+                  }
+                  if (r < 0.0) {
+                    r = 0.0;
+                  }
                 }
                 if (g > 1.0 || g < 0.0) {
                   RNCoord tmp;
                   g = modf(g, &tmp);
+                  if (g > 1.0) {
+                    g = 1.0;
+                  }
+                  if (g < 0.0) {
+                    g = 0.0;
+                  }
                 }
-
-                RNLoadRgb(r, g, b);
+                RNLoadRgb(r, g, 0.0);
                 R3LoadPoint(position);
               }
             }
@@ -1113,6 +1124,7 @@ void Redraw(void)
   if (capture_uv_map_images) {
     if (DrawSceneWithOpenGL(*camera, scene, UV_MAP_COLOR_SCHEME)) {
       R2Image color_image(width, height, 3);
+      
       if (CaptureColor(color_image)) {
         char output_image_filename[1024];
         sprintf(output_image_filename, "%s/%s_uv_map.jpg", output_image_directory, name);
