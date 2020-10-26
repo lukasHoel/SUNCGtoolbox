@@ -654,6 +654,7 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                 if (r > 1.0 || r < 0.0) {
                   RNCoord tmp;
                   r = modf(r, &tmp);
+                  // this clamps it to [0.0, 1.0] in case the modf function did not work correctly (can happen i.e. with negative values...)
                   if (r > 1.0) {
                     r = 1.0;
                   }
@@ -664,6 +665,7 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                 if (g > 1.0 || g < 0.0) {
                   RNCoord tmp;
                   g = modf(g, &tmp);
+                  // this clamps it to [0.0, 1.0] in case the modf function did not work correctly (can happen i.e. with negative values...)
                   if (g > 1.0) {
                     g = 1.0;
                   }
@@ -671,7 +673,7 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                     g = 0.0;
                   }
                 }
-                RNLoadRgb(r, g, 0.0);
+                RNLoadRgb(r, g, b);
                 R3LoadPoint(position);
               }
             }
