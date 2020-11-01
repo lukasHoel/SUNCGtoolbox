@@ -673,7 +673,8 @@ DrawNodeWithOpenGL(const R3Camera& camera, R3Scene *scene, R3SceneNode *node, in
                     g = 0.0;
                   }
                 }
-                RNLoadRgb(r, g, b);
+                //RNLoadRgb(r, g, b);
+                RNLoadRgb(r, g, 0.0);
                 R3LoadPoint(position);
               }
             }
